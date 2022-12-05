@@ -1,0 +1,67 @@
+EDITOR=code
+source secret
+
+main() {
+    deactivate 2> /dev/null
+    SCRIPT_DIR=$( cd -- "$( dirname -- "${BASH_SOURCE[0]}" )" &> /dev/null && pwd )
+    _PROMPT_COMMAND="$PROMPT_COMMAND"
+    _PATH="$PATH"
+    PUZZLE_ID=$1
+    FOLDER=$PUZZLE_ID
+    INPUT=$FOLDER/input
+    TEST_INPUT=$FOLDER/test_input
+    SOL1=$FOLDER/a.py
+    SOL2=$FOLDER/b.py
+    [ -d "$FOLDER" ] || mkdir "$FOLDER"
+    [ -f "$INPUT" ] || curl "https://adventofcode.com/2022/day/$PUZZLE_ID/input" -H "$COOKIE" --output $INPUT
+    [ -f "$TEST_INPUT" ] || touch "$TEST_INPUT"
+    $EDITOR $TEST_INPUT
+    if [ -f "$SOL2" ]
+    then
+        PUZZLE_STAGE="b"
+    elif [ -f "$SOL1" ]
+    then
+        PUZZLE_STAGE="a"
+    else
+        cp template.py $SOL1
+        PUZZLE_STAGE="a"
+    fi
+    export PROMPT_COMMAND="echo -n \"(AoC \$PUZZLE_ID\$PUZZLE_STAGE) \""
+
+    edit() {
+        $EDITOR "$FOLDER/$PUZZLE_STAGE.py"
+    }
+
+    deactivate() {
+        export PROMPT_COMMAND="$_PROMPT_COMMAND"
+        export PATH="$_PATH"
+    }
+
+    run() {
+        python3 -m "$FOLDER.$PUZZLE_STAGE" < $INPUT
+    }
+
+    run2() {
+        python3 -m "$FOLDER.$PUZZLE_STAGE" < $TEST_INPUT
+    }
+
+    next() {
+        if [ "$PUZZLE_STAGE" = "a" ]
+        then
+            cp $SOL1 $SOL2
+            $EDITOR $SOL2
+            PUZZLE_STAGE="b"
+        else
+            main $(($PUZZLE_ID + 1))
+        fi
+    }
+
+    edit
+}
+
+if [ "$#" -eq 1 ]
+then
+    main $1
+else
+    echo "One arg was expected"
+fi
